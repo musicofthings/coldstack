@@ -37,7 +37,14 @@ if not os.getenv("CREDENTIAL_MASTER_KEY"):
           "Credentials will not survive a restart. Generate one with "
           "`python -m coldstack.cli genkey`.")
 
-store = InMemoryStore(vault=Vault(MASTER_KEY))
+_dsn = os.getenv("DATABASE_URL", "")
+if _dsn:
+    from .store_pg import PostgresStore
+    store = PostgresStore(dsn=_dsn, vault=Vault(MASTER_KEY))
+else:
+    print("NOTE: DATABASE_URL not set - credentials are held in memory for this "
+          "process only. Set it to persist them.")
+    store = InMemoryStore(vault=Vault(MASTER_KEY))
 jobs = JobRegistry()
 app = FastAPI(title="ColdStack", version="0.1.0")
 app.add_middleware(

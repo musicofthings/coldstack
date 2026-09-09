@@ -21,6 +21,13 @@ cheapest-first, stop on first verified hit. Typical blended cost lands at $0.01â
 found email versus $0.05+ from any single vendor.
 
 ## Verification
+
+Six email finders are wired (Hunter, Findymail, Prospeo, LeadMagic, Dropcontact, Apollo
+enrichment), which is what gives the waterfall real competition to rank. Dropcontact is
+the cleanest GDPR posture and strongest on EU contacts; LeadMagic and Findymail skew
+North American SaaS. Dropcontact's API is async - it returns a request_id to poll - so
+it currently reports a miss on the first pass until the polling worker lands.
+
 - **Reacher** (`check-if-email-exists`) â€” AGPL, self-hostable, does real SMTP RCPT probes.
   Zero marginal cost. Needs outbound port 25, which most clouds block: run it on a VPS
   that permits it (Hetzner, OVH) with a clean IP and correct PTR.

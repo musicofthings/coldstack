@@ -9,3 +9,5 @@ dnspython>=2.6          # DNS doctor: SPF/DKIM/DMARC/MX + Spamhaus lookups
 imap-tools>=1.7         # mailbox reply sync
 pynacl>=1.5             # sealed-box credential vault
 tenacity>=9.0
+pytest>=8.3
+pytest-asyncio>=0.24

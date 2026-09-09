@@ -19,6 +19,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 from ..enrich.waterfall import ProviderStats, find_email
+from ..verify.cache import VerificationCache, verify_cached
 from ..providers.base import (EmailFinder, PersonRec, SearchProvider, SearchQuery,
                               Verifier)
 
@@ -50,6 +51,7 @@ class BuildReport:
     after_suppression: int = 0
     emails_found: int = 0
     verified_valid: int = 0
+    verifications_reused: int = 0
     total_cost_usd: float = 0.0
     per_provider: dict[str, dict] = field(default_factory=dict)
     unsupported_filters: list[str] = field(default_factory=list)
@@ -66,6 +68,7 @@ class BuildReport:
             f"after suppression {self.after_suppression}",
             f"emails found      {self.emails_found}",
             f"verified valid    {self.verified_valid}",
+            f"cached verdicts   {self.verifications_reused}",
             f"total cost        ${self.total_cost_usd:.4f}",
             f"cost/valid email  ${self.cost_per_valid_email:.4f}",
         ]
@@ -114,6 +117,7 @@ async def build_list(
     suppressed_domains: set[str] | None = None,
     budget_usd: float | None = None,
     concurrency: int = 8,
+    verification_cache: VerificationCache | None = None,
 ) -> tuple[list[Lead], BuildReport]:
     report = BuildReport()
     sup_e = {e.lower() for e in (suppressed_emails or set())}
@@ -181,7 +185,12 @@ async def build_list(
                 lead.email = email
 
             if lead.email and verifier:
-                v = await verifier.verify(lead.email, key=verifier_key)
+                # A cached verdict reports zero cost, so the ledger stays honest about
+                # what this run actually spent versus what it reused.
+                v = (await verify_cached(lead.email, verifier, verification_cache,
+                                         key=verifier_key)
+                     if verification_cache is not None
+                     else await verifier.verify(lead.email, key=verifier_key))
                 _record(f"verify:{verifier.name}", v.cost)
                 lead.cost_usd += v.cost.unit_cost_usd * v.cost.units
                 if remaining["budget"] is not None:
@@ -190,6 +199,8 @@ async def build_list(
         return lead
 
     leads = await asyncio.gather(*(_one(p) for p in people))
+    if verification_cache is not None:
+        report.verifications_reused = getattr(verification_cache, "hits", 0)
     report.emails_found = sum(1 for l in leads if l.email)
     report.verified_valid = sum(1 for l in leads if l.email_status == "valid")
     return list(leads), report
