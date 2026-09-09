@@ -7,7 +7,9 @@ A campaign does not own mailboxes; it draws from a workspace pool. Each mailbox 
 carries: transport, credentials ref, `daily_cap`, `ramp_day`, current rolling stats, and
 health status (`warming | healthy | throttled | quarantined`).
 
-**Ramp curve.** Day 1: 5 sends. Increase ~30%/day to the cap over ~14–21 days. A new
+**Ramp curve.** Day 1: 5 sends. Increase ~15%/day to the cap over ~14–21 days.
+(30%/day, the figure often quoted, reaches a 40/day cap in 8 days — too fast,
+and inconsistent with the 14–21 day guidance it is usually quoted alongside.) A new
 domain that sends 500 on day 3 is dead. Enforce this in code — do not make it advisory.
 
 **Rotation.** Round-robin across healthy mailboxes with jitter, weighted by remaining
