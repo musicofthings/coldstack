@@ -125,14 +125,20 @@ def pick_mailbox(pool: list[Mailbox], recipient_domain: str, now: datetime,
     """Weighted by remaining allowance, so warm mailboxes carry the load and a mailbox
     early in its ramp is not drained on day one."""
     today = now.date()
+    # Pacing is part of eligibility, not an afterthought. Handing back a mailbox that
+    # is still inside its minimum gap makes the caller defer an enrollment that another
+    # mailbox could have taken immediately.
     eligible = [m for m in pool
-                if m.remaining(today) > 0 and m.can_send_to(recipient_domain, now)]
+                if m.remaining(today) > 0
+                and m.can_send_to(recipient_domain, now)
+                and (m.last_sent_at is None or now - m.last_sent_at >= MIN_GAP)]
     if not eligible:
         raise NoMailboxAvailable(
             f"no mailbox can send to {recipient_domain} right now: "
             f"{len(pool)} in pool, "
             f"{sum(1 for m in pool if m.remaining(today) == 0)} out of daily allowance, "
-            f"{sum(1 for m in pool if not m.can_send_to(recipient_domain, now))} in domain cool-off"
+            f"{sum(1 for m in pool if not m.can_send_to(recipient_domain, now))} in domain cool-off, "
+            f"{sum(1 for m in pool if m.last_sent_at is not None and now - m.last_sent_at < MIN_GAP)} in pacing gap"
         )
     rng = rng or random
     weights = [m.remaining(today) for m in eligible]
@@ -146,8 +152,12 @@ def next_slot(mailbox: Mailbox, now: datetime, window: SendWindow,
     rng = rng or random
     gap = timedelta(seconds=rng.randint(int(MIN_GAP.total_seconds()),
                                         int(MAX_GAP.total_seconds())))
-    earliest = (mailbox.last_sent_at + gap) if mailbox.last_sent_at else now + gap
-    return window.next_open(max(now, earliest))
+    # The gap paces sends *relative to each other*. A mailbox that has not sent yet has
+    # nothing to be paced against, so applying a gap there just delays every first send
+    # - and on a cold start that deferred the whole queue on every tick.
+    if mailbox.last_sent_at is None:
+        return window.next_open(now)
+    return window.next_open(max(now, mailbox.last_sent_at + gap))
 
 
 def record_send(mailbox: Mailbox, recipient_domain: str, at: datetime) -> None:
