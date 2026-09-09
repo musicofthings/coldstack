@@ -44,6 +44,41 @@ docker compose up -d db redis # schema applies automatically from db/migrations
 `docker compose up reacher` additionally runs a self-hosted SMTP verifier. It needs
 outbound port 25, which most clouds block — run it on a VPS that allows it.
 
+## Try it now (no keys, no cost)
+The P0 slice runs end to end against deterministic fake providers:
+
+```bash
+cd services/worker
+pip install -r requirements.txt
+python -m coldstack.cli build --demo --limit 200 --only-valid --out leads.csv
+```
+
+A real run needs only a search key; every enrichment step is optional and priced:
+
+```bash
+export APOLLO_API_KEY=...  HUNTER_API_KEY=...
+python -m coldstack.cli build \
+  --title "Head of Laboratory" --title "Director of Genomics" \
+  --country India --headcount 20-500 --limit 500 \
+  --budget 15 --only-valid --suppress do-not-contact.txt --out leads.csv
+```
+
+`--budget` is a hard stop in dollars, and the run reports what it spent per provider:
+
+```
+searched          200
+after dedupe      200
+after suppression 200
+emails found      161
+verified valid    131
+total cost        $0.8805
+cost/valid email  $0.0067
+providers:
+  hunter            140/200  hits (70.0%)  $1.0000
+  apollo_enrich      21/60   hits (35.0%)  $0.6300
+  verify:hunter     161/161  hits (100.0%) $0.8050
+```
+
 ## Sending transports
 Eleven transports in two families, because they are not interchangeable:
 
