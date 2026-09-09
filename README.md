@@ -44,6 +44,23 @@ docker compose up -d db redis # schema applies automatically from db/migrations
 `docker compose up reacher` additionally runs a self-hosted SMTP verifier. It needs
 outbound port 25, which most clouds block — run it on a VPS that allows it.
 
+## Sending transports
+Eleven transports in two families, because they are not interchangeable:
+
+- **Mailbox** (SMTP today; Gmail OAuth and Microsoft Graph in P2) — real mailboxes,
+  ~40 sends/day each after ramp, IMAP replies, genuine threading. **The only family
+  permitted for cold outreach.**
+- **ESP** (Resend, Mailjet, Mailchimp Transactional, SendGrid, Postmark, Brevo,
+  Mailgun, MailerSend, SMTP2GO, SparkPost) — bulk relay, high volume, webhook events.
+  Every one prohibits unsolicited mail in its acceptable-use policy and enforces by
+  account termination, so they are available for **opt-in, warm and transactional**
+  campaigns only.
+
+A campaign declares its class (`cold | warm | opt_in | transactional`) and only
+compatible senders can be bound to it. Enforced in `sending/policy.py` and again by a
+Postgres trigger, because an application bug here costs the user their sending account.
+See `docs/04-sending-engine.md` for the full matrix.
+
 ## Design commitments
 - **BYOK only.** ColdStack never ships or resells contact data. Keys are envelope-encrypted
   per workspace and never returned to the client after write.
