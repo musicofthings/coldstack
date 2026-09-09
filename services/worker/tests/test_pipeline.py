@@ -79,3 +79,13 @@ async def test_csv_never_writes_rows_without_an_email(tmp_path):
     n = write_csv(leads, out)
     assert n == sum(1 for l in leads if l.email)
     assert "" not in [r.split(",")[12] for r in out.read_text().splitlines()[1:]]
+
+
+async def test_csv_money_columns_have_no_float_noise(tmp_path):
+    """0.0045000000000000005 in a spreadsheet reads as a bug, not a price."""
+    leads, _ = await build_list(SearchQuery(limit=40), **_kit())
+    out = tmp_path / "leads.csv"
+    write_csv(leads, out)
+    costs = [r.split(",")[-1] for r in out.read_text().splitlines()[1:]]
+    assert costs, "expected rows"
+    assert all(len(c.split(".")[1]) == 5 for c in costs), costs[:3]

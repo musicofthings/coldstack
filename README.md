@@ -79,6 +79,26 @@ providers:
   verify:hunter     161/161  hits (100.0%) $0.8050
 ```
 
+## Run the app
+
+```bash
+# 1. API
+cd services/worker && pip install -r requirements.txt
+export CREDENTIAL_MASTER_KEY=$(python -m coldstack.cli genkey)   # else keys die with the process
+uvicorn coldstack.api.main:app --reload --port 8000
+
+# 2. UI
+cd apps/web && npm install && npm run dev     # http://localhost:3000
+```
+
+Demo mode is on by default, so the whole path works before you paste a single key.
+Turn it off and the UI asks for an Apollo key (search) and optionally a Hunter key
+(email finding + verification). Keys are sealed by the vault on arrival; the browser
+drops its copy as soon as the server confirms, and the API only ever returns a hint.
+
+**Preview is free.** It runs search only and tells you what enriching that audience
+would cost before you spend anything. `budget_usd` is a hard stop.
+
 ## Sending transports
 Eleven transports in two families, because they are not interchangeable:
 

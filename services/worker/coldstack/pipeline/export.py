@@ -26,7 +26,11 @@ def write_csv(leads: Iterable[Lead], path: str | Path, *,
         if only_valid and l.email_status != "valid":
             if not (include_catch_all and l.email_status == "catch_all"):
                 continue
-        rows.append({c: getattr(l, c) for c in COLUMNS})
+        row = {c: getattr(l, c) for c in COLUMNS}
+        # Binary floats accumulate visible noise (0.0045000000000000005).
+        # A CSV opened in a spreadsheet should show money, not artefacts.
+        row["cost_usd"] = f'{l.cost_usd:.5f}'
+        rows.append(row)
 
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
