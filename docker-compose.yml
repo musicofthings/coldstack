@@ -1,0 +1,25 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: coldstack
+      POSTGRES_PASSWORD: coldstack
+      POSTGRES_DB: coldstack
+    ports: ["5432:5432"]
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  # Self-hosted SMTP-level email verifier (Reacher, AGPL).
+  # Requires outbound port 25 - most clouds block it; run on a VPS that allows it.
+  reacher:
+    image: reacherhq/backend:latest
+    environment:
+      RCH_HTTP_HOST: 0.0.0.0
+      RCH_HELLO_NAME: ${VERIFIER_HELO_DOMAIN:-example.com}
+      RCH_FROM_EMAIL: ${VERIFIER_FROM_EMAIL:-verify@example.com}
+    ports: ["8080:8080"]
