@@ -127,5 +127,11 @@ See `docs/04-sending-engine.md` for the full matrix.
   data-deletion jobs are core tables, not features.
 
 ## Licence
-Intended: **AGPL-3.0** for the server, Apache-2.0 for the adapter interface and schema
-package. Not yet applied — see `docs/05-roadmap.md`.
+**AGPL-3.0** — see `LICENSE`.
+
+Chosen deliberately: the obvious failure mode for a project like this is someone
+wrapping it as a hosted service and closing the source. AGPL means a network-facing
+fork has to publish its changes too. Self-hosting it for your own use, including
+commercially, carries no such obligation.
+
+Note that Reacher (the self-hosted verifier) is AGPL as well, so the licences agree.
