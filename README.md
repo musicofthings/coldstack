@@ -3,7 +3,10 @@
 An open-source, self-hostable, **BYOK** alternative to ListKit — the cold-outreach stack
 without the $597/month and without the vendor lock on data.
 
-> Working name. See `docs/` for the full teardown, architecture and roadmap.
+> **Status: pre-alpha.** List building, verification and the sequence engine work and
+> are tested. There is no Gmail or Microsoft transport yet, so ColdStack cannot send
+> through a real mailbox provider — SMTP works, OAuth does not. Phases P0–P3 of 6 are
+> done; see `docs/05-roadmap.md`. Working name.
 
 ## The idea in one paragraph
 ListKit bundles a proprietary 977M-contact database with verification, inbox provisioning,
