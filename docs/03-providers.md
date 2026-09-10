@@ -46,6 +46,11 @@ Bought intent is opaque and reviewers call ListKit's "hit-or-miss". Derive inste
 Each becomes a scored, *explainable* signal with a source URL. "Hired 3 SDRs last month
 and just switched to HubSpot" beats an intent score of 87 in every reply-rate test.
 
+Implemented so far: `signals/github.py` (push recency, active-repo count, flagship repo
+stars — no API key needed for public data). Scores decay on a documented half-life, so a
+hire posted last week outranks the same hire six months ago. Every record carries a
+source URL, which is also what the personalisation gate verifies claims against.
+
 ## Sending transports
 | Transport | Use | Notes |
 |---|---|---|
