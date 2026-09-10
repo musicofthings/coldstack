@@ -18,7 +18,14 @@ def test_mailbox_may_send_cold():
 
 
 def test_cold_eligibility_is_mailbox_only():
-    assert set(eligible(CampaignClass.COLD, all_transports())) == {"smtp"}
+    """Asserts the property, not the membership. Hardcoding the set meant adding the
+    Gmail transport - a correct change - failed this test for the wrong reason."""
+    ts = all_transports()
+    cold = eligible(CampaignClass.COLD, ts)
+    assert cold, "no transport is usable for cold outreach"
+    assert all(str(t.caps.family) == "mailbox" for t in cold.values())
+    assert all(t.caps.cold_outreach_safe for t in cold.values())
+    assert not any(str(ts[n].caps.family) == "esp" for n in cold)
 
 
 def test_opt_in_may_use_every_transport():

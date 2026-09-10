@@ -1,5 +1,6 @@
 httpx>=0.27
 cryptography>=43.0     # AES-256-GCM for the credential vault
+google-auth>=2.35        # Gmail transport: signed-JWT grant for domain-wide delegation
 fastapi>=0.115
 uvicorn[standard]>=0.30
 psycopg[binary,pool]>=3.2
