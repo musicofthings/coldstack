@@ -152,6 +152,7 @@ here needs it.
 | [`docs/03-providers.md`](docs/03-providers.md) | BYOK vendor landscape with costs; derived signals |
 | [`docs/04-sending-engine.md`](docs/04-sending-engine.md) | Warmup, rotation, breakers, DNS, compliance |
 | [`docs/05-roadmap.md`](docs/05-roadmap.md) | Phases, licence reasoning, risks |
+| [`docs/06-mailbox-setup.md`](docs/06-mailbox-setup.md) | Connecting Google Workspace and Microsoft 365 mailboxes |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | **How to write a provider adapter** — the main way to extend this |
 | [`SECURITY.md`](SECURITY.md) | Threat model, the vault, how to report a vulnerability |
 
