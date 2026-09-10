@@ -80,6 +80,16 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx next build
 
+  landing-page:
+    # index.html is hand-written and served straight from the repo root by GitHub Pages,
+    # so nothing else would catch a malformed document. Two of these went wrong once:
+    # a wrapper that closed a <body> it never opened, and a stylesheet left outside <head>.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: index.html must be a complete standalone document
+        run: python3 .github/scripts/check_landing_page.py
+
   secrets:
     runs-on: ubuntu-latest
     steps:

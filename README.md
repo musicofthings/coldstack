@@ -133,10 +133,14 @@ pure functions — which is why multi-week sending behaviour is testable in mill
 
 ## Landing page
 
-[`site/index.html`](site/index.html) — one self-contained file. To publish it, set
-**Settings → Pages → Source: GitHub Actions**; `.github/workflows/pages.yml` handles the
-rest. (Branch deployment only offers the repo root or `/docs`, and `/docs` holds the
-architecture documents.)
+[`index.html`](index.html) at the repository root — one self-contained file, no build step.
+
+Publish it with **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**.
+
+It lives at the root because branch deployment only offers the root or `/docs`, and
+`/docs` holds the architecture documents, which are written to be read on GitHub rather
+than served as a website. `.nojekyll` stops Pages running Jekyll over the repo; nothing
+here needs it.
 
 ## Documentation
 
