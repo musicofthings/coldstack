@@ -131,6 +131,13 @@ pure functions — which is why multi-week sending behaviour is testable in mill
 
 ---
 
+## Landing page
+
+[`site/index.html`](site/index.html) — one self-contained file. To publish it, set
+**Settings → Pages → Source: GitHub Actions**; `.github/workflows/pages.yml` handles the
+rest. (Branch deployment only offers the repo root or `/docs`, and `/docs` holds the
+architecture documents.)
+
 ## Documentation
 
 | Doc | What's in it |
