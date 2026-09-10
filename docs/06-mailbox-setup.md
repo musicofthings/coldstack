@@ -8,6 +8,9 @@ They go into the running app's credential vault, or into `.env`, which is gitign
 
 ---
 
+> **Verified.** This path has been run end to end against a live Workspace domain:
+> delegation grant, token mint, profile read, and a real message sent and confirmed.
+
 ## Google Workspace — service account with domain-wide delegation
 
 ### Why this path and not "Sign in with Google"
@@ -83,6 +86,18 @@ domain must not take your real mail down with it.
 ramp caps a mailbox at ~40/day, so the API limit will never be the binding constraint.
 
 ---
+
+> **Written from vendor documentation, not yet executed.** Every command and cmdlet is
+> taken from current Microsoft Learn pages and the RBAC cmdlets are the supported
+> (non-legacy) ones, but nobody has run this end to end. Expect to debug. If something
+> here is wrong, a PR correcting it is the most useful contribution this repo could get.
+>
+> One error worth knowing in advance: if `Connect-ExchangeOnline` reports *"Selected user
+> account does not exist in tenant 'Microsoft Services'"*, you signed in with a personal
+> Microsoft account. That placeholder tenant has no directory, so there is no Exchange
+> Online to administer. You need a work/school account in a real M365 tenant — usually
+> `you@something.onmicrosoft.com`. `az account tenant list -o table` shows what your
+> account can actually reach.
 
 ## Microsoft 365 — Entra app with Graph application permissions
 
