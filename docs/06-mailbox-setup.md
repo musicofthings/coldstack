@@ -150,6 +150,116 @@ New-ManagementRoleAssignment -App <enterprise-app-object-id> `
 Verify by attempting a send as a mailbox *outside* the scope — it must fail with
 `ErrorAccessDenied`. A setup that succeeds there is not scoped, whatever the portal shows.
 
+### Doing all of this from a Mac
+
+Two halves, two tools. The Entra half has a proper cross-platform CLI. The Exchange half
+does not — RBAC for Applications exists only as Exchange Online PowerShell cmdlets, with
+no Graph or `az` equivalent. That is not a Windows requirement, though: the V3 module
+runs natively on macOS under PowerShell 7. Only Security & Compliance PowerShell
+(`Connect-IPPSSession`) is Windows-only, and none of this needs it.
+
+#### Part 1 — Entra app registration, with Azure CLI
+
+```bash
+brew install azure-cli
+
+# --allow-no-subscriptions matters: a tenant used only for M365 often has no Azure
+# subscription attached, and plain `az login` fails on that.
+az login --allow-no-subscriptions
+
+az ad app create --display-name ColdStack
+APP_ID=$(az ad app list --display-name ColdStack --query "[0].appId" -o tsv)
+
+# The service principal IS the "Enterprise application". Exchange needs its object id
+# later, and it is NOT the app registration's object id - that mix-up is the usual
+# failure in this setup.
+az ad sp create --id "$APP_ID"
+SP_OBJECT_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
+
+# Look the permission ids up rather than pasting GUIDs from a blog post - they are
+# stable, but querying them is self-verifying and works for any permission.
+GRAPH=00000003-0000-0000-c000-000000000000
+MAIL_SEND=$(az ad sp show --id $GRAPH --query "appRoles[?value=='Mail.Send'].id" -o tsv)
+MAIL_RW=$(az ad sp show --id $GRAPH --query "appRoles[?value=='Mail.ReadWrite'].id" -o tsv)
+
+# =Role means application permission. =Scope would mean delegated, which is not what a
+# background sender wants.
+az ad app permission add --id "$APP_ID" --api $GRAPH \
+  --api-permissions "$MAIL_SEND=Role" "$MAIL_RW=Role"
+
+az ad app permission admin-consent --id "$APP_ID"
+
+# --append is important: without it, `credential reset` deletes existing credentials.
+az ad app credential reset --id "$APP_ID" --append \
+  --display-name coldstack --years 1
+```
+
+That last command prints the secret once. It is the only time you will see it.
+
+Record three values: `APP_ID` (client id), `SP_OBJECT_ID` (for the Exchange step), and
+the tenant id from `az account show --query tenantId -o tsv`.
+
+If `admin-consent` fails — the CLI is occasionally unreliable at it — click **Grant
+admin consent** on the app's API permissions page in the portal instead. Everything else
+here works.
+
+#### Part 2 — Exchange RBAC scoping, with PowerShell 7 on macOS
+
+```bash
+brew install --cask powershell
+pwsh
+```
+
+Then, inside `pwsh`:
+
+```powershell
+Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
+Connect-ExchangeOnline -UserPrincipalName admin@your-m365-domain.com
+# If the browser handoff misbehaves on macOS, add -Device for device-code sign-in.
+
+Set-Mailbox -Identity outreach1@your-m365-domain.com -CustomAttribute1 "coldstack"
+
+New-ManagementScope -Name "ColdStack senders" `
+  -RecipientRestrictionFilter "CustomAttribute1 -eq 'coldstack'"
+
+New-ServicePrincipal -AppId <APP_ID> -ObjectId <SP_OBJECT_ID> -DisplayName "ColdStack"
+
+New-ManagementRoleAssignment -App <SP_OBJECT_ID> `
+  -Role "Application Mail.Send" -CustomResourceScope "ColdStack senders"
+New-ManagementRoleAssignment -App <SP_OBJECT_ID> `
+  -Role "Application Mail.ReadWrite" -CustomResourceScope "ColdStack senders"
+```
+
+#### Verify the scope actually bounds the app
+
+Getting a token and sending as a permitted mailbox proves very little; the meaningful
+test is that a mailbox *outside* the scope is refused.
+
+```bash
+TENANT=<tenant-id>; APP_ID=<client-id>; SECRET='<client-secret>'
+
+TOKEN=$(curl -s -X POST \
+  "https://login.microsoftonline.com/$TENANT/oauth2/v2.0/token" \
+  -d grant_type=client_credentials -d "client_id=$APP_ID" \
+  -d "client_secret=$SECRET" -d scope=https://graph.microsoft.com/.default \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+# Expect 202 Accepted for a scoped mailbox:
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  "https://graph.microsoft.com/v1.0/users/outreach1@your-m365-domain.com/sendMail" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"message":{"subject":"scope test","body":{"contentType":"Text","content":"test"},
+       "toRecipients":[{"emailAddress":{"address":"outreach1@your-m365-domain.com"}}]}}'
+
+# Expect 403 ErrorAccessDenied for one outside it. A 202 here means the app can send as
+# anyone in the tenant and the scoping did not take.
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  "https://graph.microsoft.com/v1.0/users/admin@your-m365-domain.com/sendMail" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"message":{"subject":"scope test","body":{"contentType":"Text","content":"test"},
+       "toRecipients":[{"emailAddress":{"address":"admin@your-m365-domain.com"}}]}}'
+```
+
 ### What to hand ColdStack
 
 Tenant ID, client ID, client secret, and the list of sending mailbox addresses.
