@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ColdStack — open-source, BYOK cold outreach</title>
+<meta name="description" content="An open-source, self-hosted stack for building B2B lead lists and running email sequences with your own provider keys and mailboxes. Every call priced, every signal sourced.">
+<meta property="og:title" content="ColdStack">
+<meta property="og:description" content="Cold outreach, without the black box. Open-source, self-hosted, BYOK.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#1f6f5c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111412" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%AC%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Carried from the app's own palette so the page looks like the product. */
+  --paper:#f6f7f5;
+  --panel:#fffffe;
+  --ink:#151814;
+  --body:#3c433c;
+  --muted:#6d766c;
+  --rule:#dfe3dc;
+  --rule-strong:#c6ccc2;
+  --accent:#1f6f5c;
+  --accent-ink:#134438;
+  --accent-wash:#e7f1ed;
+  --warn:#8a5a00;
+  --warn-wash:#fbf2df;
+  --stop:#9b2c2c;
+  --stop-wash:#f8ebea;
+  --measure:64ch;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#111412;
+    --panel:#181c19;
+    --ink:#eef0ec;
+    --body:#c3c9c1;
+    --muted:#8d968b;
+    --rule:#2a2f2a;
+    --rule-strong:#3a413a;
+    --accent:#74c8ac;
+    --accent-ink:#a9e0cc;
+    --accent-wash:#182722;
+    --warn:#d9ae62;
+    --warn-wash:#241d10;
+    --stop:#dd8f8b;
+    --stop-wash:#2a1817;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111412; --panel:#181c19; --ink:#eef0ec; --body:#c3c9c1; --muted:#8d968b;
+  --rule:#2a2f2a; --rule-strong:#3a413a; --accent:#74c8ac; --accent-ink:#a9e0cc;
+  --accent-wash:#182722; --warn:#d9ae62; --warn-wash:#241d10; --stop:#dd8f8b; --stop-wash:#2a1817;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--body);
+  font:400 16.5px/1.62 "IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:22px}
+h1,h2,h3{font-family:Archivo,"IBM Plex Sans",system-ui,sans-serif;color:var(--ink);
+  text-wrap:balance;margin:0;letter-spacing:-0.02em;line-height:1.1}
+h1{font-size:clamp(2.4rem,6vw,3.9rem);font-weight:700;letter-spacing:-0.035em}
+h2{font-size:clamp(1.5rem,3.2vw,2.05rem);font-weight:600}
+h3{font-size:1.02rem;font-weight:600;letter-spacing:-0.01em}
+p{margin:0;max-width:var(--measure)}
+a{color:var(--accent-ink);text-decoration-thickness:1px;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* ---- the eyebrow / label voice, borrowed from the product's own report output ---- */
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+/* ---- sections are prose; panels are machine output. Different treatments on purpose. */
+section{padding-block:clamp(52px,7vw,86px);border-top:1px solid var(--rule)}
+section:first-of-type{border-top:none}
+.stack{display:flex;flex-direction:column;gap:20px}
+.lede{font-size:1.12rem;color:var(--body)}
+
+/* Panels have no radius and one hairline: they are readouts, not cards. */
+.panel{background:var(--panel);border:1px solid var(--rule);border-top:2px solid var(--rule-strong);
+  padding:0;overflow:hidden}
+.panel-head{display:flex;gap:12px;align-items:baseline;justify-content:space-between;
+  padding:11px 16px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.panel-body{padding:16px;overflow-x:auto}
+pre{margin:0;font-family:"IBM Plex Mono",monospace;font-size:.83rem;line-height:1.72;
+  color:var(--body);white-space:pre}
+pre b{color:var(--ink);font-weight:600}
+pre .g{color:var(--accent)}
+pre .w{color:var(--warn)}
+pre .r{color:var(--stop)}
+pre .d{color:var(--muted)}
+
+/* ---- hero ---- */
+.hero{padding-block:clamp(46px,8vw,84px) clamp(34px,5vw,54px)}
+.hero h1{margin-bottom:14px}
+.hero .lede{font-size:clamp(1.08rem,2.2vw,1.3rem);max-width:56ch}
+.badge{display:inline-flex;align-items:center;gap:8px;font-family:"IBM Plex Mono",monospace;
+  font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--warn);
+  background:var(--warn-wash);border:1px solid color-mix(in srgb,var(--warn) 28%,transparent);
+  padding:5px 11px;margin-bottom:22px}
+.dot{width:6px;height:6px;background:var(--warn);border-radius:50%;flex:none}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.clone{display:flex;align-items:center;gap:10px;background:var(--panel);
+  border:1px solid var(--rule-strong);padding:11px 14px;font-family:"IBM Plex Mono",monospace;
+  font-size:.83rem;color:var(--ink);overflow-x:auto;white-space:nowrap}
+.clone .p{color:var(--accent)}
+.btn{display:inline-block;background:var(--accent);color:#fff;font-weight:600;font-size:.94rem;
+  padding:12px 20px;text-decoration:none;border:1px solid var(--accent)}
+:root[data-theme="dark"] .btn,:root:not([data-theme="light"]) .btn{color:#0e1512}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .btn{color:#fff}}
+.btn.ghost{background:transparent;color:var(--accent-ink);border-color:var(--rule-strong)}
+
+/* ---- verdict chips: the product's own vocabulary, used as page vocabulary ---- */
+.chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-weight:600;
+  letter-spacing:.04em;padding:2px 7px;border:1px solid transparent}
+.chip.ok{color:var(--accent);background:var(--accent-wash);border-color:color-mix(in srgb,var(--accent) 25%,transparent)}
+.chip.warn{color:var(--warn);background:var(--warn-wash);border-color:color-mix(in srgb,var(--warn) 25%,transparent)}
+.chip.no{color:var(--stop);background:var(--stop-wash);border-color:color-mix(in srgb,var(--stop) 25%,transparent)}
+.chip.off{color:var(--muted);border-color:var(--rule)}
+
+/* ---- three-up ---- */
+.trio{display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));margin-top:30px}
+.trio > div{display:flex;flex-direction:column;gap:9px}
+.trio p{font-size:.95rem;max-width:42ch}
+.num{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--accent);letter-spacing:.1em}
+
+/* ---- tables ---- */
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:.7rem;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:9px 12px;
+  border-bottom:1px solid var(--rule-strong);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.t{color:var(--ink);font-weight:500}
+.tw{overflow-x:auto}
+
+/* ---- reject list: the anti-fabrication demo ---- */
+.rejects{display:flex;flex-direction:column;gap:0;font-size:.9rem}
+.rejects > div{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
+  padding:11px 0;border-bottom:1px solid var(--rule)}
+.rejects > div:last-child{border-bottom:none}
+.rejects .why{color:var(--muted);font-size:.82rem;font-family:"IBM Plex Mono",monospace}
+.rejects q{color:var(--ink);font-style:italic;quotes:"\201C" "\201D"}
+
+footer{border-top:1px solid var(--rule);padding-block:38px 54px;color:var(--muted);font-size:.88rem}
+footer .row{display:flex;gap:22px;flex-wrap:wrap;justify-content:space-between;align-items:baseline}
+footer a{color:var(--body)}
+.tnum{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:no-preference){
+  .btn{transition:filter .16s ease}
+  .btn:hover{filter:brightness(1.08)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero">
+    <div class="badge"><span class="dot"></span>Pre-alpha · 191 tests · AGPL-3.0</div>
+    <h1>Cold outreach, without the black box.</h1>
+    <p class="lede">An open-source, self-hosted stack for building B2B lead lists and running
+      email sequences — using your own provider keys and your own mailboxes. Every call is
+      priced, every signal is sourced, and nothing is a subscription.</p>
+    <div class="cta">
+      <div class="clone mono"><span class="p">$</span>git clone https://github.com/musicofthings/coldstack</div>
+      <a class="btn" href="https://github.com/musicofthings/coldstack">View on GitHub</a>
+      <a class="btn ghost" href="#start">Run it locally</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">What a list actually costs</span>
+      <h2>The receipt, not the flat fee.</h2>
+      <p>Subscription list tools bill the same whether you export a hundred leads or a hundred
+        thousand. ColdStack meters every provider call instead — and shows you the bill.</p>
+    </div>
+    <div class="panel" style="margin-top:28px">
+      <div class="panel-head">
+        <span class="eyebrow">coldstack build · 200 contacts</span>
+        <span class="chip ok">budget $2.00 · spent $0.88</span>
+      </div>
+      <div class="panel-body">
+<pre>searched          <b>200</b>
+after dedupe      <b>200</b>
+after suppression <b>200</b>   <span class="d">← suppression runs before enrichment, never after</span>
+emails found      <b>161</b>
+verified valid    <b>131</b>
+total cost        <b>$0.8805</b>
+cost/valid email  <b>$0.0067</b>
+
+providers:
+  hunter          140/200 hits <span class="g">(70.0%)</span>  $1.0000
+  apollo_enrich    21/60  hits <span class="w">(35.0%)</span>  $0.6300   <span class="d">← only reached when hunter misses</span>
+  verify:hunter   161/161 hits <span class="g">(100.0%)</span> $0.8050</pre>
+      </div>
+    </div>
+    <div class="trio">
+      <div>
+        <span class="num">01</span>
+        <h3>Cheapest provider first</h3>
+        <p>Six email finders compete. The waterfall reorders them by <em>your</em> observed
+          cost-per-hit, because hit rates depend on who you're targeting — not on a vendor's
+          published averages.</p>
+      </div>
+      <div>
+        <span class="num">02</span>
+        <h3>A hard budget cap</h3>
+        <p>Set a dollar ceiling on a run and it stops there — and says so. A capped run that
+          quietly returns fewer leads with no explanation is worse than one that refuses.</p>
+      </div>
+      <div>
+        <span class="num">03</span>
+        <h3>Free preview before you spend</h3>
+        <p>Search costs nothing and returns no addresses. You see who you're about to pay to
+          enrich, and the estimate, before a single credit is spent.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Personalisation</span>
+      <h2>It cannot invent a compliment.</h2>
+      <p>The defining failure of AI cold email is the fabricated detail — <q>loved your post on
+        scaling Postgres</q> when no such post exists. It's worse than no personalisation,
+        because it proves the sender is automated and careless.</p>
+      <p>Prompting a model not to do that doesn't work. So the model is handed numbered signals
+        with source URLs, must cite the ones each line rests on, and every line is then verified
+        in code. Unsupported numbers and names are thrown out — never rewritten.</p>
+    </div>
+    <div class="panel" style="margin-top:28px">
+      <div class="panel-head">
+        <span class="eyebrow">Verification gate · 4 candidate lines</span>
+        <span class="chip ok">1 kept</span>
+      </div>
+      <div class="panel-body">
+        <div class="rejects">
+          <div>
+            <span class="chip ok">kept</span>
+            <div><q>Saw Kestrel Bio posted 3 lab technician roles in August.</q>
+              <div class="why">cites signal 1 · every figure and name present in it</div></div>
+          </div>
+          <div>
+            <span class="chip no">dropped</span>
+            <div><q>Loved your work on the Helios sequencing platform.</q>
+              <div class="why">names not in the cited signals: ['Helios']</div></div>
+          </div>
+          <div>
+            <span class="chip no">dropped</span>
+            <div><q>Kestrel Bio posted 47 roles in August.</q>
+              <div class="why">numbers not in the cited signals: ['47']</div></div>
+          </div>
+          <div>
+            <span class="chip no">dropped</span>
+            <div><q>Your lab looks like it's scaling fast.</q>
+              <div class="why">cites no supplied signal</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:22px;font-size:.95rem;color:var(--muted)">With no signals at all, the
+      model is never called. Nothing true to say is a correct outcome.</p>
+  </section>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Signals</span>
+      <h2>Sourced, dated, and decayed.</h2>
+      <p>Instead of an opaque intent score, signals come from public sources and each one carries
+        a link you can click before you quote it. Scores halve on a documented half-life, so a
+        hire posted last week outranks the same hire six months ago.</p>
+    </div>
+    <div class="panel" style="margin-top:28px">
+      <div class="panel-head"><span class="eyebrow">Derived signals · github</span></div>
+      <div class="panel-body">
+<pre><span class="g">[0.699]</span> pushed to 20 repositories in the last 90 days
+        <span class="d">↳ https://github.com/orgs/…/repositories</span>
+<span class="g">[0.500]</span> last pushed to claude-code on 2026-09-10
+        <span class="d">↳ https://github.com/anthropics/claude-code</span>
+<span class="w">[0.400]</span> maintains claude-code with 144,583 stars
+        <span class="d">↳ https://github.com/anthropics/claude-code</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Sending</span>
+      <h2>It won't let you burn your domain.</h2>
+      <p>Bulk email providers — Resend, Mailjet, SendGrid, Mailchimp and the rest — all prohibit
+        unsolicited mail in their acceptable-use policies, and enforce by terminating accounts.
+        So a campaign declares what it is, and only compatible senders can bind to it.</p>
+    </div>
+    <div class="panel tw" style="margin-top:28px">
+      <table>
+        <thead><tr><th>Campaign class</th><th>Mailbox senders</th><th>Bulk ESP senders</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td class="t">cold</td><td><span class="chip ok">allowed</span></td><td><span class="chip no">refused</span></td><td>Unsolicited mail breaches every ESP's AUP</td></tr>
+          <tr><td class="t">warm</td><td><span class="chip ok">allowed</span></td><td><span class="chip no">refused</span></td><td>Same rule; prior contact isn't consent</td></tr>
+          <tr><td class="t">opt_in</td><td><span class="chip ok">allowed</span></td><td><span class="chip ok">allowed</span></td><td>People subscribed — an ESP is the right tool</td></tr>
+          <tr><td class="t">transactional</td><td><span class="chip ok">allowed</span></td><td><span class="chip ok">allowed</span></td><td>Receipts, resets, the app's own mail</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="trio">
+      <div>
+        <span class="num">Enforced twice</span>
+        <h3>In code and in the database</h3>
+        <p>A Postgres trigger refuses the binding as well as the application layer, because a bug
+          here costs someone their sending account — not a recoverable error.</p>
+      </div>
+      <div>
+        <span class="num">Ramp</span>
+        <h3>5 sends/day, +15%/day</h3>
+        <p>Enforced, not advised. A fresh domain that sends 500 on day three is dead, and no
+          amount of good copy recovers it.</p>
+      </div>
+      <div>
+        <span class="num">Breakers</span>
+        <h3>Pauses without you watching</h3>
+        <p>Authentication break pauses immediately. Bounce rate at 3% quarantines the mailbox.
+          200 sends with zero replies throttles — that's silent spam-foldering.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Deliverability</span>
+      <h2>An instrument panel, not a toggle.</h2>
+      <p>The failures that actually kill domains are quiet ones — an SPF record that exceeds its
+        DNS-lookup budget silently becomes a permerror, and stops working while still looking
+        correct.</p>
+    </div>
+    <div class="panel" style="margin-top:28px">
+      <div class="panel-head">
+        <span class="eyebrow">dns doctor · sending domain</span>
+        <span class="chip no">not safe to send</span>
+      </div>
+      <div class="panel-body">
+<pre><span class="g">[ OK  ]</span> MX: 5 host(s), primary aspmx.l.google.com
+<span class="r">[ FAIL]</span> SPF lookups: 12 DNS lookups (limit 10)
+         <span class="d">fix: over the limit is a permerror, so SPF stops working entirely
+              even though the record looks fine. Flatten includes.</span>
+<span class="g">[ OK  ]</span> SPF policy: -all (hard fail)
+<span class="w">[ WARN]</span> DKIM: selector google; key looks under 1024 bits
+<span class="g">[ OK  ]</span> DMARC: p=reject
+<span class="w">[ WARN]</span> Tracking domain shares the root domain with the sender
+<span class="g">[ OK  ]</span> Blocklist: not listed on Spamhaus DBL</pre>
+      </div>
+    </div>
+    <p style="margin-top:22px;font-size:.95rem;color:var(--muted)">A check that couldn't run
+      reports <span class="chip off">unknown</span>, never <span class="chip ok">ok</span>. An
+      inconclusive report is not a green light.</p>
+  </section>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Honest status</span>
+      <h2>What works, and what doesn't.</h2>
+      <p>This is pre-alpha and the gaps are real. You can build and verify lists, generate and
+        lint sequences, and run them end to end in simulation. You cannot yet send through Gmail
+        or Microsoft.</p>
+    </div>
+    <div class="panel tw" style="margin-top:28px">
+      <table>
+        <thead><tr><th>Capability</th><th>State</th></tr></thead>
+        <tbody>
+          <tr><td class="t">Provider adapters — Apollo search, 6 email finders</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">Cost-aware waterfall, budget caps, usage ledger</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">Credential vault — AES-256-GCM envelope encryption</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">Verification — Hunter, self-hosted Reacher, verdict-TTL cache</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">DNS doctor, ramp, rotation, circuit breakers</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">Sequences, A/B, stop-on-reply, inbound classification</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">AI — ICP translation, copy linting, gated personalisation</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">SMTP sending</td><td><span class="chip ok">working</span></td></tr>
+          <tr><td class="t">Gmail / Microsoft Graph OAuth transports</td><td><span class="chip no">not built</span></td></tr>
+          <tr><td class="t">Master inbox UI, campaign analytics</td><td><span class="chip no">not built</span></td></tr>
+          <tr><td class="t">Persisted lists and saved searches</td><td><span class="chip warn">schema only</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="stack">
+      <span class="eyebrow">Get started</span>
+      <h2>Two commands, no signup.</h2>
+      <p>Demo mode runs the entire pipeline against deterministic fake providers, so you can see
+        what it does before you paste a single key.</p>
+    </div>
+    <div class="panel" style="margin-top:28px">
+      <div class="panel-body">
+<pre><span class="g">$</span> git clone https://github.com/musicofthings/coldstack && cd coldstack
+<span class="g">$</span> make setup     <span class="d"># writes .env with a generated CREDENTIAL_MASTER_KEY</span>
+<span class="g">$</span> make up        <span class="d"># db, redis, api, web → localhost:3000</span>
+
+<span class="d"># or skip Docker entirely:</span>
+<span class="g">$</span> cd services/worker && pip install -r requirements.txt
+<span class="g">$</span> python -m coldstack.cli build --demo --limit 200 --only-valid --out leads.csv</pre>
+      </div>
+    </div>
+    <p style="margin-top:22px;font-size:.95rem">Bring your own keys for Apollo, Hunter, an LLM,
+      and your own mailboxes. ColdStack ships no contact data and never will — it's a pipeline
+      you point at providers you already have agreements with.</p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap row">
+    <div>
+      <strong style="color:var(--ink);font-family:Archivo,sans-serif">ColdStack</strong> ·
+      <a href="https://github.com/musicofthings/coldstack">github.com/musicofthings/coldstack</a>
+    </div>
+    <div>AGPL-3.0 · a network-facing fork must publish its changes</div>
+  </div>
+</footer>
+</body>
+</html>

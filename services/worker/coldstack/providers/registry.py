@@ -17,7 +17,48 @@ def register(kind: str):
     return deco
 
 
-def search_providers() -> dict[str, Any]: return dict(_SEARCH)
-def email_finders() -> dict[str, Any]: return dict(_FINDERS)
-def verifiers() -> dict[str, Any]: return dict(_VERIFIERS)
-def signal_sources() -> dict[str, Any]: return dict(_SIGNALS)
+def _ensure_loaded() -> None:
+    """Ensure EVERY adapter module has been imported.
+
+    Two earlier attempts at this guard were both wrong in the same way - they asked
+    "has loading happened?" instead of "is everything loaded?":
+
+      1. A module-level boolean desynced from the tables, so a reload emptied the
+         registry permanently.
+      2. Checking whether the tables were non-empty meant that if any single adapter
+         module happened to be imported first, the registry concluded it was complete
+         and the rest never registered - which is how six finders read as one.
+
+    So the check is against the module list itself, and separately against the tables
+    for the reload case.
+    """
+    import sys
+
+    from . import adapter_modules, load_adapters   # lazy: adapters import from here
+
+    if any(m not in sys.modules for m in adapter_modules()):
+        load_adapters()
+        return
+    if not (_SEARCH or _FINDERS or _VERIFIERS or _SIGNALS):
+        # Modules are in sys.modules but the tables are empty: registry was reloaded.
+        load_adapters(force=True)
+
+
+def search_providers() -> dict[str, Any]:
+    _ensure_loaded()
+    return dict(_SEARCH)
+
+
+def email_finders() -> dict[str, Any]:
+    _ensure_loaded()
+    return dict(_FINDERS)
+
+
+def verifiers() -> dict[str, Any]:
+    _ensure_loaded()
+    return dict(_VERIFIERS)
+
+
+def signal_sources() -> dict[str, Any]:
+    _ensure_loaded()
+    return dict(_SIGNALS)

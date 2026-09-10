@@ -20,7 +20,6 @@ from pydantic import BaseModel, Field
 
 from ..pipeline.build_list import Lead, build_list
 from ..pipeline.export import COLUMNS
-from ..providers import apollo, fake, hunter          # noqa: F401 - registers adapters
 from ..providers.base import SearchQuery
 from ..providers.registry import email_finders, search_providers, verifiers
 from ..sending.policy import CampaignClass, eligible

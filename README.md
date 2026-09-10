@@ -1,55 +1,17 @@
 # ColdStack
 
-An open-source, self-hostable, **BYOK** alternative to ListKit — the cold-outreach stack
-without the $597/month and without the vendor lock on data.
+**An open-source, self-hosted, BYOK cold outreach stack.** Build and verify B2B lead
+lists through your own provider keys, then run sequences from your own mailboxes —
+without a $597/month subscription or a vendor holding your data.
 
-> **Status: pre-alpha.** List building, verification and the sequence engine work and
-> are tested. There is no Gmail or Microsoft transport yet, so ColdStack cannot send
-> through a real mailbox provider — SMTP works, OAuth does not. Phases P0–P3 of 6 are
-> done; see `docs/05-roadmap.md`. Working name.
+> **Status: pre-alpha.** List building, verification, the sequence engine and inbound
+> classification all work and are tested (191 tests). **There is no Gmail or Microsoft
+> OAuth transport yet** — SMTP sends, OAuth does not. Treat this as a working core, not
+> a finished product.
 
-## The idea in one paragraph
-ListKit bundles a proprietary 977M-contact database with verification, inbox provisioning,
-a sending engine and an AI copywriter. The database is the moat, and it is the one part an
-open-source project cannot and should not clone. So ColdStack inverts it: you bring your
-own keys (Apollo, People Data Labs, Hunter, Exa, an LLM, your own mailboxes) and ColdStack
-owns the parts that are genuinely hard and that no vendor will sell you — a unified schema,
-a cost-aware enrichment waterfall, identity resolution, real deliverability instrumentation,
-and a sending engine that will not let you burn your domain.
+---
 
-## Status
-Design + scaffold. Nothing runs end to end yet. Start with `docs/05-roadmap.md`.
-
-## Documentation
-| Doc | What's in it |
-|---|---|
-| `docs/00-feature-teardown.md` | What ListKit actually ships, module by module, and where it is weak |
-| `docs/01-architecture.md` | Layer map, stack choices, credential vault, cost ledger |
-| `docs/02-data-model.md` | The schema decisions worth defending |
-| `docs/03-providers.md` | BYOK vendor landscape with costs; the derived-signals approach |
-| `docs/04-sending-engine.md` | Warmup, rotation, circuit breakers, DNS doctor, compliance |
-| `docs/05-roadmap.md` | Six phases, each a runnable vertical slice; licence; risks |
-| `CONTRIBUTING.md` | How to write a provider adapter — the main way to extend this |
-| `SECURITY.md` | Threat model, the credential vault, how to report a vulnerability |
-
-## Layout
-```
-apps/web              Next.js 15 + shadcn/ui
-services/worker       Python 3.11, FastAPI + Celery  (package: coldstack)
-packages/schema       shared TS types
-db/migrations         plain SQL, applied on container init
-infra                 deploy recipes
-```
-
-## Local dev (once P0 lands)
-```bash
-cp .env.example .env          # nothing is required to boot; keys are added per-workspace in the UI
-docker compose up -d db redis # schema applies automatically from db/migrations
-```
-`docker compose up reacher` additionally runs a self-hosted SMTP verifier. It needs
-outbound port 25, which most clouds block — run it on a VPS that allows it.
-
-## Self-host
+## Quickstart
 
 ```bash
 git clone https://github.com/musicofthings/coldstack && cd coldstack
@@ -57,104 +19,145 @@ make setup     # writes .env with a generated CREDENTIAL_MASTER_KEY
 make up        # db, redis, api, web
 ```
 
-`http://localhost:3000`. Nothing else is required — no account, no API key. Demo mode
-runs the full pipeline against deterministic fake providers.
+Open `http://localhost:3000`. **No account and no API key are needed** — demo mode runs
+the whole pipeline against deterministic fake providers.
 
-Back up the key `make setup` writes. Lose it and every stored provider credential
-becomes permanently unreadable; that is the design (see `SECURITY.md`).
-
-`make help` lists the rest. The self-hosted verifier is behind a profile because it
-needs outbound port 25, which most clouds block:
-`docker compose --profile verify up -d reacher`.
-
-## Try it now (no keys, no cost)
-The P0 slice runs end to end against deterministic fake providers:
+Or without Docker:
 
 ```bash
-cd services/worker
-pip install -r requirements.txt
+cd services/worker && pip install -r requirements.txt
 python -m coldstack.cli build --demo --limit 200 --only-valid --out leads.csv
 ```
 
-A real run needs only a search key; every enrichment step is optional and priced:
+Back up the key `make setup` writes. Lose it and every stored provider credential
+becomes permanently unreadable — that is deliberate, see [SECURITY.md](SECURITY.md).
 
-```bash
-export APOLLO_API_KEY=...  HUNTER_API_KEY=...
-python -m coldstack.cli build \
-  --title "Head of Laboratory" --title "Director of Genomics" \
-  --country India --headcount 20-500 --limit 500 \
-  --budget 15 --only-valid --suppress do-not-contact.txt --out leads.csv
+`make help` lists everything else.
+
+---
+
+## The idea
+
+ListKit and its competitors sell you a database. ColdStack sells you the **pipeline**,
+and you point it at whatever data you have keys for.
+
+That inversion is not a compromise — the database is the one part an open-source project
+genuinely cannot clone, and the pipeline is the part no vendor will hand over. So
+ColdStack owns the hard, unglamorous middle: a unified schema, cost-aware enrichment,
+identity resolution, real deliverability instrumentation, and a sending engine that will
+not let you burn your domain.
+
+### Three things that fall out of it
+
+**Every call is priced.** A usage ledger records cost, latency and hit/miss for each
+provider call. That is what makes the enrichment waterfall real: providers are ordered by
+*your* observed cost-per-hit, not a vendor's averages. A run reports what it actually
+spent and where.
+
+```
+searched          200        emails found      161
+after suppression 200        verified valid    131
+total cost        $0.8805    cost/valid email  $0.0067
+  hunter          140/200 hits (70.0%)  $1.0000
+  apollo_enrich    21/60  hits (35.0%)  $0.6300
 ```
 
-`--budget` is a hard stop in dollars, and the run reports what it spent per provider:
+**Signals you can audit.** Instead of an opaque intent score, signals are derived from
+public sources and every one carries a source URL and a decayed score. `"pushed to 20
+repositories in the last 90 days"` with a link beats `intent: 87`.
+
+**Personalisation that cannot fabricate.** The model may only reference supplied signals
+and must cite them; every line is then verified in code — unsupported numbers and proper
+nouns are rejected, and with no signals the model is never called. An invented compliment
+is worse than none, so it is structurally impossible rather than discouraged.
+
+---
+
+## What works today
+
+| Area | Status |
+|---|---|
+| BYOK provider adapters | Apollo (search), 6 email finders, Hunter + Reacher verification |
+| Cost-aware enrichment waterfall | Ranks by observed cost-per-hit, hard budget caps |
+| Credential vault | AES-256-GCM envelope encryption, per-workspace + per-provider AAD |
+| Verification cache | Per-verdict TTLs; reused verdicts cost nothing |
+| DNS doctor | SPF (with lookup-limit counting), DKIM, DMARC, MX, blocklist |
+| Sending engine | Ramp, rotation, domain cool-off, pacing, windows, circuit breakers |
+| Sequence engine | Multi-step, A/B, stop-on-reply across campaigns, send-time suppression |
+| Inbound | Bounce / auto-reply / OOO / unsubscribe classification, IMAP fetch |
+| AI layer | ICP → query, copy generation + linting, citation-gated personalisation |
+| Web UI | Sources, filters, free preview, build progress, CSV export |
+| **Gmail / Microsoft OAuth** | **Not built.** SMTP only. |
+| Master inbox UI, analytics | Not built |
+| Persisted lists, saved searches | Schema exists, store does not |
+
+---
+
+## Sending: two transport families, and the difference matters
+
+- **Mailbox** (SMTP today; Gmail OAuth and Graph planned) — real mailboxes, ~40 sends/day
+  each after ramp, IMAP replies, genuine threading. **The only family permitted for cold
+  outreach.**
+- **ESP** (Resend, Mailjet, Mailchimp Transactional, SendGrid, Postmark, Brevo, Mailgun,
+  MailerSend, SMTP2GO, SparkPost) — bulk relay, high volume, webhook events. Every one
+  prohibits unsolicited mail in its acceptable-use policy and enforces by account
+  termination, so they are available for **opt-in, warm and transactional** campaigns only.
+
+A campaign declares its class (`cold | warm | opt_in | transactional`) and only compatible
+senders can bind to it. Enforced in application code *and* by a Postgres trigger, because
+a bug here costs a user their sending account.
+
+Open and click tracking are **off by default**. Both hurt cold-email placement; opt in
+knowingly.
+
+---
+
+## How it is put together
 
 ```
-searched          200
-after dedupe      200
-after suppression 200
-emails found      161
-verified valid    131
-total cost        $0.8805
-cost/valid email  $0.0067
-providers:
-  hunter            140/200  hits (70.0%)  $1.0000
-  apollo_enrich      21/60   hits (35.0%)  $0.6300
-  verify:hunter     161/161  hits (100.0%) $0.8050
+L7  AI            ICP → query | copy + lint | personalisation | reply intent   (BYOK LLM)
+L6  Inbox         IMAP fetch, threading, bounce/OOO/reply classification
+L5  Campaigns     sequences, scheduler, rotation, throttling, circuit breakers
+L4  Infra         domains, DNS doctor, mailbox pool, warmup
+L3  Verification  syntax → MX → SMTP → catch-all → risk, cached by verdict TTL
+L2  Enrichment    waterfall with a cost ledger
+L1  Audience      provider adapters → normalised person/company → lists
+L0  Platform      workspaces, encrypted BYOK vault, usage ledger
 ```
 
-## Run the app
+Next.js + TypeScript for anything a user watches happen; Python for anything that runs for
+minutes to weeks. Postgres with pgvector. Scheduling, sequencing and classification are
+pure functions — which is why multi-week sending behaviour is testable in milliseconds.
 
-```bash
-# 1. API
-cd services/worker && pip install -r requirements.txt
-export CREDENTIAL_MASTER_KEY=$(python -m coldstack.cli genkey)   # else keys die with the process
-uvicorn coldstack.api.main:app --reload --port 8000
+---
 
-# 2. UI
-cd apps/web && npm install && npm run dev     # http://localhost:3000
-```
+## Documentation
 
-Demo mode is on by default, so the whole path works before you paste a single key.
-Turn it off and the UI asks for an Apollo key (search) and optionally a Hunter key
-(email finding + verification). Keys are sealed by the vault on arrival; the browser
-drops its copy as soon as the server confirms, and the API only ever returns a hint.
+| Doc | What's in it |
+|---|---|
+| [`docs/00-feature-teardown.md`](docs/00-feature-teardown.md) | What the incumbent actually ships, and where it is weak |
+| [`docs/01-architecture.md`](docs/01-architecture.md) | Layers, stack choices, credential vault, cost ledger |
+| [`docs/02-data-model.md`](docs/02-data-model.md) | Schema decisions worth defending |
+| [`docs/03-providers.md`](docs/03-providers.md) | BYOK vendor landscape with costs; derived signals |
+| [`docs/04-sending-engine.md`](docs/04-sending-engine.md) | Warmup, rotation, breakers, DNS, compliance |
+| [`docs/05-roadmap.md`](docs/05-roadmap.md) | Phases, licence reasoning, risks |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | **How to write a provider adapter** — the main way to extend this |
+| [`SECURITY.md`](SECURITY.md) | Threat model, the vault, how to report a vulnerability |
 
-**Preview is free.** It runs search only and tells you what enriching that audience
-would cost before you spend anything. `budget_usd` is a hard stop.
+---
 
-## Sending transports
-Eleven transports in two families, because they are not interchangeable:
+## Compliance
 
-- **Mailbox** (SMTP today; Gmail OAuth and Microsoft Graph in P2) — real mailboxes,
-  ~40 sends/day each after ramp, IMAP replies, genuine threading. **The only family
-  permitted for cold outreach.**
-- **ESP** (Resend, Mailjet, Mailchimp Transactional, SendGrid, Postmark, Brevo,
-  Mailgun, MailerSend, SMTP2GO, SparkPost) — bulk relay, high volume, webhook events.
-  Every one prohibits unsolicited mail in its acceptable-use policy and enforces by
-  account termination, so they are available for **opt-in, warm and transactional**
-  campaigns only.
-
-A campaign declares its class (`cold | warm | opt_in | transactional`) and only
-compatible senders can be bound to it. Enforced in `sending/policy.py` and again by a
-Postgres trigger, because an application bug here costs the user their sending account.
-See `docs/04-sending-engine.md` for the full matrix.
-
-## Design commitments
-- **BYOK only.** ColdStack never ships or resells contact data. Keys are envelope-encrypted
-  per workspace and never returned to the client after write.
-- **Every call is priced.** The usage ledger records cost and hit rate for each provider
-  call, which is what makes the waterfall — and honest reporting — possible.
-- **Tracking off by default.** Open pixels and wrapped links hurt cold-email deliverability.
-  Opt in, with a warning.
-- **Compliance is not a setting.** Global suppression, RFC 8058 one-click unsubscribe, and
-  data-deletion jobs are core tables, not features.
+Suppression lists, RFC 8058 one-click unsubscribe, and per-workspace data deletion are
+core tables, not optional features. ColdStack does not ship contact data and never will —
+it uses keys you supply under your own agreements. Sending unsolicited mail may still
+breach CAN-SPAM, GDPR, CASL or India's DPDP Act depending on where you and your recipients
+are; [`docs/04-sending-engine.md`](docs/04-sending-engine.md) covers what the software
+does and does not do for you.
 
 ## Licence
-**AGPL-3.0** — see `LICENSE`.
 
-Chosen deliberately: the obvious failure mode for a project like this is someone
-wrapping it as a hosted service and closing the source. AGPL means a network-facing
-fork has to publish its changes too. Self-hosting it for your own use, including
-commercially, carries no such obligation.
-
-Note that Reacher (the self-hosted verifier) is AGPL as well, so the licences agree.
+[AGPL-3.0](LICENSE). The obvious failure mode for a project like this is someone wrapping
+it as a hosted service and closing the source; AGPL requires a network-facing fork to
+publish its changes. Self-hosting for your own use, commercially or otherwise, carries no
+such obligation.

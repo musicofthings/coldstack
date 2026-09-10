@@ -22,7 +22,6 @@ import sys
 
 from .pipeline.build_list import build_list
 from .pipeline.export import write_csv
-from .providers import apollo, fake, hunter          # noqa: F401 - registers adapters
 from .providers.base import SearchQuery
 from .providers.registry import email_finders, search_providers, verifiers
 from .vault import generate_master_key
