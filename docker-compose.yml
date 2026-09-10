@@ -1,25 +1,76 @@
+# ColdStack - one-command self-host.
+#
+#   make setup    generates .env with a fresh CREDENTIAL_MASTER_KEY
+#   make up       starts db, redis, api and web
+#
+# Provider API keys are NOT set here. They are entered per workspace in the UI and
+# sealed by the vault - see docs/01-architecture.md. Nothing in this file needs a
+# third-party account.
+
+name: coldstack
+
 services:
   db:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: coldstack
-      POSTGRES_PASSWORD: coldstack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coldstack}
       POSTGRES_DB: coldstack
-    ports: ["5432:5432"]
+    ports: ["${DB_PORT:-5432}:5432"]
     volumes:
-      - ./data/pg:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+      # Applied in filename order on FIRST start only. An existing volume is never
+      # re-initialised, so `make migrate` is what applies new migrations later.
       - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coldstack -d coldstack"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["${REDIS_PORT:-6379}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  # Self-hosted SMTP-level email verifier (Reacher, AGPL).
-  # Requires outbound port 25 - most clouds block it; run on a VPS that allows it.
+  api:
+    build: ./services/worker
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    environment:
+      DATABASE_URL: postgresql://coldstack:${POSTGRES_PASSWORD:-coldstack}@db:5432/coldstack
+      REDIS_URL: redis://redis:6379/0
+      # Required. `make setup` generates one; without it credentials live only in
+      # memory and die with the container.
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?run "make setup" first}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      REACHER_URL: ${REACHER_URL:-}
+    ports: ["${API_PORT:-8000}:8000"]
+
+  web:
+    build: ./apps/web
+    depends_on: [api]
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports: ["${WEB_PORT:-3000}:3000"]
+
+  # Self-hosted SMTP verifier. Not started by default: it needs outbound port 25,
+  # which AWS, GCP, Azure and most PaaS block outright. Run it on a host that allows
+  # port 25 with a clean IP and a correct PTR record, or every verdict is "unknown".
+  #   docker compose --profile verify up -d reacher
   reacher:
     image: reacherhq/backend:latest
+    profiles: ["verify"]
     environment:
       RCH_HTTP_HOST: 0.0.0.0
       RCH_HELLO_NAME: ${VERIFIER_HELO_DOMAIN:-example.com}
       RCH_FROM_EMAIL: ${VERIFIER_FROM_EMAIL:-verify@example.com}
-    ports: ["8080:8080"]
+    ports: ["${REACHER_PORT:-8080}:8080"]
+
+volumes:
+  pgdata:

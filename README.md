@@ -29,6 +29,8 @@ Design + scaffold. Nothing runs end to end yet. Start with `docs/05-roadmap.md`.
 | `docs/03-providers.md` | BYOK vendor landscape with costs; the derived-signals approach |
 | `docs/04-sending-engine.md` | Warmup, rotation, circuit breakers, DNS doctor, compliance |
 | `docs/05-roadmap.md` | Six phases, each a runnable vertical slice; licence; risks |
+| `CONTRIBUTING.md` | How to write a provider adapter — the main way to extend this |
+| `SECURITY.md` | Threat model, the credential vault, how to report a vulnerability |
 
 ## Layout
 ```
@@ -46,6 +48,24 @@ docker compose up -d db redis # schema applies automatically from db/migrations
 ```
 `docker compose up reacher` additionally runs a self-hosted SMTP verifier. It needs
 outbound port 25, which most clouds block — run it on a VPS that allows it.
+
+## Self-host
+
+```bash
+git clone https://github.com/musicofthings/coldstack && cd coldstack
+make setup     # writes .env with a generated CREDENTIAL_MASTER_KEY
+make up        # db, redis, api, web
+```
+
+`http://localhost:3000`. Nothing else is required — no account, no API key. Demo mode
+runs the full pipeline against deterministic fake providers.
+
+Back up the key `make setup` writes. Lose it and every stored provider credential
+becomes permanently unreadable; that is the design (see `SECURITY.md`).
+
+`make help` lists the rest. The self-hosted verifier is behind a profile because it
+needs outbound port 25, which most clouds block:
+`docker compose --profile verify up -d reacher`.
 
 ## Try it now (no keys, no cost)
 The P0 slice runs end to end against deterministic fake providers:
